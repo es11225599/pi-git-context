@@ -78,12 +78,15 @@ async function revertEntry(root: string, e: StatusEntry): Promise<void> {
 // --- panels -----------------------------------------------------------------
 
 function selectDialog(ctx: ExtensionCommandContext, title: string, items: SelectItem[], hint?: string) {
+	// ponytail: +1 leading space per label — some terminals draw "→" overlapping the next cell;
+	// padding absorbs it so the first real character survives. Remove if marker ever becomes configurable.
+	const padded = items.map((it) => ({ ...it, label: " " + it.label }));
 	return ctx.ui.custom<string | null>((tui, theme, _kb, done) => {
 		const container = new Container();
 		container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
 		container.addChild(new Text(theme.fg("accent", theme.bold(title)), 1, 0));
 		if (hint) container.addChild(new Text(theme.fg("dim", hint), 1, 0));
-		const list = new SelectList(items, Math.min(items.length, 12), {
+		const list = new SelectList(padded, Math.min(padded.length, 12), {
 			selectedPrefix: (t: string) => theme.fg("accent", t),
 			selectedText: (t: string) => theme.fg("accent", t),
 			description: (t: string) => theme.fg("muted", t),
@@ -162,7 +165,7 @@ async function diffLines(root: string, e: StatusEntry): Promise<string[]> {
 			maxBuffer: 16 * 1024 * 1024,
 		});
 		// Empty output with dirty status = normalization-only change (e.g. CRLF↔LF via core.autocrlf)
-		if (!stdout.trim()) return ["(no content diff — line-ending change only)"];
+		if (!stdout.trim()) return ["(no content diff — likely CRLF/LF mismatch; `git add --renormalize .` settles it)"];
 		const lines = stdout.replace(/\r?\n$/, "").split("\n").slice(0, MAX_DIFF_LINES);
 		return lines.length && lines[0] !== "" ? lines : ["(no changes to show)"];
 	} catch {
