@@ -13,7 +13,7 @@ import {
 	type Component,
 	type SelectItem,
 } from "@earendil-works/pi-tui";
-import { describeStatus, parseStatus } from "./status.mjs";
+import { parseStatus } from "./status.mjs";
 
 interface StatusEntry {
 	x: string;
@@ -129,12 +129,17 @@ const RED = "\x1b[31m";
 const CYAN = "\x1b[36m";
 const DIM = "\x1b[2m";
 
-function paint(line: string): string {
-	if (line.startsWith("+")) return GREEN + line;
-	if (line.startsWith("-")) return RED + line;
-	if (line.startsWith("@@")) return CYAN + line;
-	if (/^(diff |index |--- |\+\+\+ )/.test(line)) return DIM + line;
-	return line;
+function vlen(s: string): number {
+	return s.replace(/\x1b\[[0-9;]*m/g, "").length;
+}
+
+function paintChunk(chunk: string): string {
+	if (chunk.startsWith("+")) return GREEN + chunk;
+	if (chunk.startsWith("-")) return RED + chunk;
+	if (chunk.startsWith("@@")) return CYAN + chunk;
+	if (/^(diff |index |--- |\+\+\+ )/.test(chunk)) return DIM + chunk;
+	if (chunk.startsWith("  ↪ ")) return DIM + chunk;
+	return chunk;
 }
 
 async function diffLines(root: string, e: StatusEntry): Promise<string[]> {
@@ -163,12 +168,39 @@ async function diffLines(root: string, e: StatusEntry): Promise<string[]> {
 
 class DiffViewer implements Component {
 	private top = 0;
+	private wrapped: string[] = [];
+	private wrapWidth = -1;
+
 	constructor(
+		private theme: any,
 		private title: string,
-		private lines: string[],
+		private raw: string[],
 		private onClose: (action: "close" | "revert") => void,
 		private onChange: () => void,
 	) {}
+
+	// ponytail: character-cell wrapping (no word wrap); upgrade if prose diffs matter
+	private ensureWrapped(width: number): void {
+		const inner = Math.max(20, width - 4);
+		if (this.wrapWidth === inner) return;
+		this.wrapWidth = inner;
+		this.wrapped = [];
+		for (const rawLine of this.raw) {
+			const line = rawLine.replace(/\r$/, "");
+			if (line.length <= inner) {
+				this.wrapped.push(line);
+			} else {
+				for (let i = 0; i < line.length; i += inner) {
+					this.wrapped.push(i === 0 ? line.slice(0, inner) : "  ↪ " + line.slice(i, i + inner - 4));
+				}
+			}
+		}
+	}
+
+	private bar(label: string, width: number): string {
+		const fill = Math.max(0, width - vlen(label) - 3);
+		return this.theme.fg("accent", `─ ${label} ` + "─".repeat(fill));
+	}
 
 	handleInput(data: string): void {
 		let d = 0;
@@ -179,21 +211,23 @@ class DiffViewer implements Component {
 		else if (matchesKey(data, Key.escape) || data === "q") return this.onClose("close");
 		else if (data === "r") return this.onClose("revert");
 		else return;
-		this.top = Math.max(0, Math.min(this.top + d, Math.max(0, this.lines.length - (VIEW_H - 1))));
+		const bodyH = VIEW_H - 4;
+		this.top = Math.max(0, Math.min(this.top + d, Math.max(0, this.wrapped.length - bodyH)));
 		this.onChange();
 	}
 
 	render(width: number): string[] {
-		const visible = this.lines.slice(this.top, this.top + VIEW_H - 1);
-		const header =
-			` ${this.title} [${this.top + 1}-${Math.min(this.top + visible.length, this.lines.length)}/${this.lines.length}] ` +
-			`j/k scroll · g/G ends · r revert · q close`;
+		this.ensureWrapped(width);
+		const bodyH = VIEW_H - 4;
+		const total = this.wrapped.length;
+		this.top = Math.max(0, Math.min(this.top, Math.max(0, total - bodyH)));
+		const vis = this.wrapped.slice(this.top, this.top + bodyH);
+		const pos = total ? `${this.top + 1}-${Math.min(this.top + bodyH, total)}/${total}` : "empty";
 		return [
-			DIM + (header.length > width ? header.slice(0, width - 1) + "…" : header),
-			...visible.map((l) => {
-				const raw = l.length > width ? l.slice(0, width - 1) + "…" : l;
-				return paint(raw);
-			}),
+			this.bar(`${this.title}  [${pos}]`, width),
+			...vis.map((l) => " " + paintChunk(l)),
+			...(vis.length < bodyH ? Array.from({ length: bodyH - vis.length }, () => "") : []),
+			this.bar("j/k scroll · g/G ends · r revert · q close", width),
 		];
 	}
 
@@ -264,8 +298,7 @@ async function cmdChanges(ctx: ExtensionCommandContext): Promise<void> {
 	while (true) {
 		const items: SelectItem[] = entries.map((e, i) => ({
 			value: String(i),
-			label: e.path,
-			description: describeStatus(e),
+			label: `[${e.x}${e.y.trim() || " "}] ${e.path}`,
 		}));
 		const pick = await selectDialog(ctx, "Changed files", items, "Enter to view diff · Esc to exit");
 		if (!pick) return;
@@ -273,7 +306,7 @@ async function cmdChanges(ctx: ExtensionCommandContext): Promise<void> {
 		const entry = entries[idx];
 		const lines = await diffLines(root, entry);
 		const action = await ctx.ui.custom<"close" | "revert">(
-			(tui, _theme, _kb, done) => new DiffViewer(entry.path, lines, done, () => tui.requestRender()),
+			(tui, theme, _kb, done) => new DiffViewer(theme, entry.path, lines, done, () => tui.requestRender()),
 			{ overlay: true },
 		);
 		if (action === "revert") {

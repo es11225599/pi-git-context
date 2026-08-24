@@ -1,4 +1,4 @@
-# pi-git-context
+# pi-git-contexta
 
 A [pi](https://pi.dev) package that puts git workflow commands at your fingertips: switch branches, sync with remotes, inspect working-tree changes, and reject unwanted edits — without leaving the editor.
 
