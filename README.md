@@ -20,17 +20,21 @@ Git commands for [pi](https://pi.dev) as a single `/git` command family with tab
 ## Install
 
 ```bash
-# From npm (after publishing)
-pi install pi-git-context
-
 # From git
-pi install https://github.com/<you>/pi-git-context.git
+pi install git:github.com/es11225599/pi-git-context.git
+pi install https://github.com/es11225599/pi-git-context   # raw URL works too
 
 # From a local path
 pi install /path/to/pi-git-context
 ```
 
-For a quick try without installing the package, drop the extension into your global extensions directory:
+For development against a working copy:
+
+```bash
+pi install /path/to/pi-git-context   # live edits, no reinstall needed
+```
+
+To try without installing the package, drop the extension into your global extensions directory:
 
 ```bash
 cp extensions/git.ts ~/.pi/agent/extensions/
