@@ -1,37 +1,33 @@
 # pi-git-context
 
-Git commands for [pi](https://pi.dev) as a single `/git` command family with tab completion. Switch branches, sync with remotes, inspect working-tree changes, and reject unwanted edits without leaving the editor.
+A [pi](https://pi.dev) package that puts git workflow commands at your fingertips: switch branches, sync with remotes, inspect working-tree changes, and reject unwanted edits — without leaving the editor.
 
-## Features
+## What it does
 
-- **Branch context at a glance** — current branch and dirty-file count shown persistently in the footer status area
-- **Branch switching** — pick from local branches with fuzzy-friendly select dialog (`✓` marks current)
-- **New branches** — create and switch in one step, name via argument or prompt
-- **Remote sync** — fetch all remotes with prune, pull with fast-forward-only safety
-- **Change inspection** — list every dirty file with its status, view its diff in a scrollable colored overlay
-- **Revert (reject changes)** — discard uncommitted changes per file, with explicit confirmation before anything destructive happens
+- Registers a single `/git` command family with tab-completed subcommands.
+- Shows the current branch and dirty-file count persistently in the footer status area.
+- Lists local branches and switches with a select dialog (`✓` marks current).
+- Creates and switches to new branches in one step.
+- Fetches all remotes with prune; pulls with fast-forward-only safety.
+- Lists every dirty file with its status, opens its diff in a scrollable colored overlay, and reverts (rejects) changes per file after explicit confirmation.
 
-## Requirements
-
-- pi (any recent version with extension support)
-- `git` on your PATH
-- No npm dependencies — Node built-ins only
-
-## Install
+## Installation
 
 ```bash
-# From git
 pi install git:github.com/es11225599/pi-git-context.git
-pi install https://github.com/es11225599/pi-git-context   # raw URL works too
+```
 
-# From a local path
-pi install /path/to/pi-git-context
+Raw URLs work too:
+
+```bash
+pi install https://github.com/es11225599/pi-git-context
 ```
 
 For development against a working copy:
 
 ```bash
-pi install /path/to/pi-git-context   # live edits, no reinstall needed
+cd /path/to/pi-git-context
+pi install .
 ```
 
 To try without installing the package, drop the extension into your global extensions directory:
@@ -42,7 +38,7 @@ cp extensions/git.ts ~/.pi/agent/extensions/
 
 ## Commands
 
-All functionality lives under one command with tab-completed subcommands:
+All functionality lives under one command with tab completion:
 
 ```
 /git <subcommand>
@@ -106,7 +102,7 @@ test/status.test.mjs    # parser self-check
 ## Development
 
 ```bash
-node test/status.test.mjs   # run parser tests
+npm test                    # run parser tests
 ```
 
 The extension loads `.mjs` helpers so tests run on plain Node with zero tooling. Everything else uses only what pi injects (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`) plus Node built-ins.
@@ -117,4 +113,6 @@ The extension loads `.mjs` helpers so tests run on plain Node with zero tooling.
 - No staging/unstaging — pairs well with running `git add` yourself or asking the agent
 - Quoted paths in porcelain output (non-ASCII filenames) keep raw escape sequences
 
-MIT licensed.
+## License
+
+MIT — see `author` and `license` in [package.json](package.json).

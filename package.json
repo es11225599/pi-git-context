@@ -1,10 +1,34 @@
 {
-  "name": "pi-git-context",
+  "name": "@es11225599/pi-git-context",
   "version": "0.1.0",
   "description": "Git commands for pi: branch switching, fetch/pull, working-tree changes with diff view & revert",
-  "keywords": ["pi-package"],
-  "type": "module",
+  "keywords": [
+    "pi-package",
+    "git",
+    "branch",
+    "diff",
+    "developer-tools"
+  ],
+  "homepage": "https://github.com/es11225599/pi-git-context",
+  "bugs": {
+    "url": "https://github.com/es11225599/pi-git-context/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/es11225599/pi-git-context.git"
+  },
   "license": "MIT",
+  "author": "es11225599",
+  "type": "module",
+  "files": [
+    "extensions",
+    "test",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "test": "node test/status.test.mjs"
+  },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-tui": "*"
