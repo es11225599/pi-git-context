@@ -297,7 +297,7 @@ async function cmdPull(ctx: ExtensionCommandContext): Promise<void> {
 
 async function cmdChanges(ctx: ExtensionCommandContext): Promise<void> {
 	const root = await requireRoot(ctx);
-	let entries = parseStatus(await git(root, ["status", "--porcelain"]));
+	let entries = parseStatus(await git(root, ["status", "--porcelain=v2", "-z"]));
 	if (!entries.length) {
 		ctx.ui.notify("Working tree clean", "info");
 		return;
