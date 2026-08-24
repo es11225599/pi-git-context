@@ -94,8 +94,19 @@ function selectDialog(ctx: ExtensionCommandContext, title: string, items: Select
 		list.onCancel = () => done(null);
 		container.addChild(list);
 		container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
-		void tui.requestRender();
-		return container;
+		// Container does not forward key input to children — route it manually.
+		return {
+			render(width: number) {
+				return container.render(width);
+			},
+			invalidate() {
+				container.invalidate();
+			},
+			handleInput(data: string) {
+				list.handleInput(data);
+				tui.requestRender();
+			},
+		};
 	});
 }
 
