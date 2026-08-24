@@ -1,7 +1,8 @@
 // Pure parsing of `git status --porcelain` (v1). Kept dependency-free so tests run on plain node.
 
 export function parseStatus(out) {
-	const lines = out.split("\n").filter(Boolean);
+	// ponytail: strips trailing \r only (Windows git); embedded \r elsewhere untouched
+	const lines = out.split("\n").map((l) => l.replace(/\r$/, "")).filter(Boolean);
 	// ponytail: quoted paths keep escape sequences raw (\xxx octal from git); upgrade when non-ASCII filenames matter
 	return lines.map((line) => {
 		let path = line.slice(3);

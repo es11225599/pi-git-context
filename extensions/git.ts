@@ -13,7 +13,7 @@ import {
 	type Component,
 	type SelectItem,
 } from "@earendil-works/pi-tui";
-import { parseStatus } from "./status.mjs";
+import { describeStatus, parseStatus } from "./status.mjs";
 
 interface StatusEntry {
 	x: string;
@@ -128,17 +128,19 @@ const GREEN = "\x1b[32m";
 const RED = "\x1b[31m";
 const CYAN = "\x1b[36m";
 const DIM = "\x1b[2m";
+const RESET = "\x1b[0m";
 
 function vlen(s: string): number {
 	return s.replace(/\x1b\[[0-9;]*m/g, "").length;
 }
 
 function paintChunk(chunk: string): string {
-	if (chunk.startsWith("+")) return GREEN + chunk;
-	if (chunk.startsWith("-")) return RED + chunk;
-	if (chunk.startsWith("@@")) return CYAN + chunk;
-	if (/^(diff |index |--- |\+\+\+ )/.test(chunk)) return DIM + chunk;
-	if (chunk.startsWith("  ↪ ")) return DIM + chunk;
+	// headers before +/- checks — "--- a/x" must not match the deletion branch
+	if (/^(diff |index |--- |\+\+\+ )/.test(chunk)) return DIM + chunk + RESET;
+	if (chunk.startsWith("@@")) return CYAN + chunk + RESET;
+	if (chunk.startsWith("+")) return GREEN + chunk + RESET;
+	if (chunk.startsWith("-")) return RED + chunk + RESET;
+	if (chunk.startsWith("  ↪ ")) return DIM + chunk + RESET;
 	return chunk;
 }
 
@@ -159,7 +161,9 @@ async function diffLines(root: string, e: StatusEntry): Promise<string[]> {
 			cwd: root,
 			maxBuffer: 16 * 1024 * 1024,
 		});
-		const lines = stdout.replace(/\n$/, "").split("\n").slice(0, MAX_DIFF_LINES);
+		// Empty output with dirty status = normalization-only change (e.g. CRLF↔LF via core.autocrlf)
+		if (!stdout.trim()) return ["(no content diff — line-ending change only)"];
+		const lines = stdout.replace(/\r?\n$/, "").split("\n").slice(0, MAX_DIFF_LINES);
 		return lines.length && lines[0] !== "" ? lines : ["(no changes to show)"];
 	} catch {
 		return ["(failed to get diff)"];
@@ -298,7 +302,8 @@ async function cmdChanges(ctx: ExtensionCommandContext): Promise<void> {
 	while (true) {
 		const items: SelectItem[] = entries.map((e, i) => ({
 			value: String(i),
-			label: `[${e.x}${e.y.trim() || " "}] ${e.path}`,
+			// path first so right-truncation eats the status word, never the filename
+			label: `${e.path} · ${describeStatus(e)}`,
 		}));
 		const pick = await selectDialog(ctx, "Changed files", items, "Enter to view diff · Esc to exit");
 		if (!pick) return;
