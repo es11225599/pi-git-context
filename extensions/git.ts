@@ -6,6 +6,8 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-c
 import { BorderedLoader, DynamicBorder } from "@earendil-works/pi-coding-agent";
 import {
 	Container,
+	fuzzyFilter,
+	Input,
 	Key,
 	matchesKey,
 	SelectList,
@@ -77,26 +79,44 @@ async function revertEntry(root: string, e: StatusEntry): Promise<void> {
 
 // --- panels -----------------------------------------------------------------
 
-function selectDialog(ctx: ExtensionCommandContext, title: string, items: SelectItem[], hint?: string) {
+function selectDialog(
+	ctx: ExtensionCommandContext,
+	title: string,
+	items: SelectItem[],
+	hint?: string,
+	searchable = false,
+) {
 	// ponytail: +1 leading space per label — some terminals draw "→" overlapping the next cell;
 	// padding absorbs it so the first real character survives. Remove if marker ever becomes configurable.
 	const padded = items.map((it) => ({ ...it, label: " " + it.label }));
 	return ctx.ui.custom<string | null>((tui, theme, _kb, done) => {
-		const container = new Container();
-		container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
-		container.addChild(new Text(theme.fg("accent", theme.bold(title)), 1, 0));
-		if (hint) container.addChild(new Text(theme.fg("dim", hint), 1, 0));
-		const list = new SelectList(padded, Math.min(padded.length, 12), {
-			selectedPrefix: (t: string) => theme.fg("accent", t),
-			selectedText: (t: string) => theme.fg("accent", t),
-			description: (t: string) => theme.fg("muted", t),
-			scrollInfo: (t: string) => theme.fg("dim", t),
-			noMatch: (t: string) => theme.fg("warning", t),
-		});
-		list.onSelect = (item) => done(item.value);
-		list.onCancel = () => done(null);
-		container.addChild(list);
-		container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
+		const makeList = (visible: SelectItem[]) => {
+			const l = new SelectList(visible, Math.min(visible.length, 12), {
+				selectedPrefix: (t: string) => theme.fg("accent", t),
+				selectedText: (t: string) => theme.fg("accent", t),
+				description: (t: string) => theme.fg("muted", t),
+				scrollInfo: (t: string) => theme.fg("dim", t),
+				noMatch: (t: string) => theme.fg("warning", t),
+			});
+			l.onSelect = (item) => done(item.value);
+			l.onCancel = () => done(null);
+			return l;
+		};
+		// SelectList cannot be re-filled, so a filter change rebuilds the list; the Input persists.
+		const search = searchable ? new Input({ prompt: "Search: " }) : null;
+		if (search) search.focused = true;
+		let list = makeList(padded);
+		let container = new Container();
+		const build = () => {
+			container = new Container();
+			container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
+			container.addChild(new Text(theme.fg("accent", theme.bold(title)), 1, 0));
+			if (hint) container.addChild(new Text(theme.fg("dim", hint), 1, 0));
+			if (search) container.addChild(search);
+			container.addChild(list);
+			container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
+		};
+		build();
 		// Container does not forward key input to children — route it manually.
 		return {
 			render(width: number) {
@@ -106,7 +126,23 @@ function selectDialog(ctx: ExtensionCommandContext, title: string, items: Select
 				container.invalidate();
 			},
 			handleInput(data: string) {
-				list.handleInput(data);
+				if (!search) {
+					list.handleInput(data);
+				} else if (matchesKey(data, Key.escape)) {
+					done(null);
+				} else if (
+					matchesKey(data, Key.enter) ||
+					matchesKey(data, Key.up) ||
+					matchesKey(data, Key.down) ||
+					matchesKey(data, Key.pageUp) ||
+					matchesKey(data, Key.pageDown)
+				) {
+					list.handleInput(data);
+				} else {
+					search.handleInput(data);
+					list = makeList(fuzzyFilter(padded, search.getValue(), (it) => it.value));
+					build();
+				}
 				tui.requestRender();
 			},
 		};
@@ -252,7 +288,13 @@ async function cmdBranch(ctx: ExtensionCommandContext): Promise<void> {
 		value: b,
 		label: b === current ? `${b} ✓` : b,
 	}));
-	const pick = await selectDialog(ctx, "Branches", items, "Enter to switch · Esc to cancel");
+	const pick = await selectDialog(
+		ctx,
+		"Branches",
+		items,
+		"Type to search · Enter to switch · Esc to cancel",
+		true,
+	);
 	if (!pick || pick === current) return;
 	await git(root, ["checkout", pick]);
 	ctx.ui.notify(`Switched to ${pick}`, "info");

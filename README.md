@@ -6,7 +6,7 @@ A [pi](https://pi.dev) package that puts git workflow commands at your fingertip
 
 - Registers a single `/git` command family with tab-completed subcommands.
 - Shows the current branch and dirty-file count persistently in the footer status area.
-- Lists local branches and switches with a select dialog (`✓` marks current).
+- Lists local branches and switches with a select dialog (`✓` marks current); typing filters the list.
 - Creates and switches to new branches in one step.
 - Fetches all remotes with prune; pulls with fast-forward-only safety.
 - Lists every dirty file with its status, opens its diff in a scrollable colored overlay, and reverts (rejects) changes per file after explicit confirmation.
@@ -46,7 +46,7 @@ All functionality lives under one command with tab completion:
 
 | Subcommand | Action |
 | --- | --- |
-| `/git branch` | List local branches, select one, `git checkout`. Current branch marked `✓`. |
+| `/git branch` | List local branches, select one, `git checkout`. Fuzzy search box filters as you type. Current branch marked `✓`. |
 | `/git new-branch [name]` | `git checkout -b <name>`. Prompts interactively when no name given. Invalid ref names rejected up front. |
 | `/git fetch` | `git fetch --all --prune`, result reported as notification. |
 | `/git pull` | `git pull --ff-only`. On failure (diverged branch) shows git's first error line instead of creating surprise merge commits. |
